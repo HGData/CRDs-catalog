@@ -210,7 +210,7 @@
                 "type": "string"
               },
               "scheduleDeadlineTime": {
-                "description": "Output only. The deadline that the maintenance schedule start time\ncan not go beyond, including reschedule.\nA timestamp in RFC3339 UTC \"Zulu\" format, with nanosecond\nresolution and up to nine fractional digits.",
+                "description": "Output only. The deadline that the maintenance schedule start time\ncannot go beyond, including reschedule.\nA timestamp in RFC3339 UTC \"Zulu\" format, with nanosecond\nresolution and up to nine fractional digits.",
                 "type": "string"
               },
               "startTime": {
@@ -354,7 +354,7 @@
                 "type": "string"
               },
               "scheduleDeadlineTime": {
-                "description": "Output only. The deadline that the maintenance schedule start time\ncan not go beyond, including reschedule.\nA timestamp in RFC3339 UTC \"Zulu\" format, with nanosecond\nresolution and up to nine fractional digits.",
+                "description": "Output only. The deadline that the maintenance schedule start time\ncannot go beyond, including reschedule.\nA timestamp in RFC3339 UTC \"Zulu\" format, with nanosecond\nresolution and up to nine fractional digits.",
                 "type": "string"
               },
               "startTime": {
@@ -388,6 +388,17 @@
         "observedGeneration": {
           "description": "ObservedGeneration is the generation of the resource that was most recently observed by the Config Connector controller. If this is equal to metadata.generation, then that means that the current reported status reflects the most recent desired state of the resource.",
           "type": "integer"
+        },
+        "observedState": {
+          "description": "The observed state of the underlying GCP resource.",
+          "properties": {
+            "authString": {
+              "description": "Output only. AUTH String set on the instance. This field will only be populated if auth_enabled is true.",
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
         },
         "persistenceIamIdentity": {
           "description": "Output only. Cloud IAM identity used by import / export operations\nto transfer data to/from Cloud Storage. Format is \"serviceAccount:\".\nThe value may change over time for a given instance so should be\nchecked before each import/export operation.",

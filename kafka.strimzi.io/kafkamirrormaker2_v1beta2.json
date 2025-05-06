@@ -53,6 +53,10 @@
                     "description": "Configure whether access token should be treated as JWT. This should be set to `false` if the authorization server returns opaque tokens. Defaults to `true`.",
                     "type": "boolean"
                   },
+                  "accessTokenLocation": {
+                    "description": "Path to the token file containing an access token to be used for authentication.",
+                    "type": "string"
+                  },
                   "audience": {
                     "description": "OAuth audience to use when authenticating against the authorization server. Some authorization servers require the audience to be explicitly set. The possible values depend on how the authorization server is configured. By default, `audience` is not specified when performing the token endpoint request.",
                     "type": "string"
@@ -74,12 +78,39 @@
                       }
                     },
                     "required": [
-                      "key",
                       "secretName",
-                      "certificate"
+                      "certificate",
+                      "key"
                     ],
                     "type": "object",
                     "additionalProperties": false
+                  },
+                  "clientAssertion": {
+                    "description": "Link to Kubernetes secret containing the client assertion which was manually configured for the client.",
+                    "properties": {
+                      "key": {
+                        "description": "The key under which the secret value is stored in the Kubernetes Secret.",
+                        "type": "string"
+                      },
+                      "secretName": {
+                        "description": "The name of the Kubernetes Secret containing the secret value.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "secretName"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "clientAssertionLocation": {
+                    "description": "Path to the file containing the client assertion to be used for authentication.",
+                    "type": "string"
+                  },
+                  "clientAssertionType": {
+                    "description": "The client assertion type. If not set, and either `clientAssertion` or `clientAssertionLocation` is configured, this value defaults to `urn:ietf:params:oauth:client-assertion-type:jwt-bearer`.",
+                    "type": "string"
                   },
                   "clientId": {
                     "description": "OAuth Client ID which the Kafka client can use to authenticate against the OAuth server and use the token endpoint URI.",
@@ -174,6 +205,13 @@
                     "type": "object",
                     "additionalProperties": false
                   },
+                  "saslExtensions": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "SASL extensions parameters.",
+                    "type": "object"
+                  },
                   "scope": {
                     "description": "OAuth scope to use when authenticating against the authorization server. Some authorization servers require this to be set. The possible values depend on how authorization server is configured. By default `scope` is not specified when doing the token endpoint request.",
                     "type": "string"
@@ -181,9 +219,31 @@
                   "tlsTrustedCertificates": {
                     "description": "Trusted certificates for TLS connection to the OAuth server.",
                     "items": {
+                      "oneOf": [
+                        {
+                          "properties": {
+                            "certificate": {}
+                          },
+                          "required": [
+                            "certificate"
+                          ]
+                        },
+                        {
+                          "properties": {
+                            "pattern": {}
+                          },
+                          "required": [
+                            "pattern"
+                          ]
+                        }
+                      ],
                       "properties": {
                         "certificate": {
-                          "description": "The name of the file certificate in the Secret.",
+                          "description": "The name of the file certificate in the secret.",
+                          "type": "string"
+                        },
+                        "pattern": {
+                          "description": "Pattern for the certificate files in the secret. Use the link:https://en.wikipedia.org/wiki/Glob_(programming)[_glob syntax_] for the pattern. All files in the secret that match the pattern are used.",
                           "type": "string"
                         },
                         "secretName": {
@@ -192,8 +252,7 @@
                         }
                       },
                       "required": [
-                        "secretName",
-                        "certificate"
+                        "secretName"
                       ],
                       "type": "object",
                       "additionalProperties": false
@@ -241,9 +300,31 @@
                   "trustedCertificates": {
                     "description": "Trusted certificates for TLS connection.",
                     "items": {
+                      "oneOf": [
+                        {
+                          "properties": {
+                            "certificate": {}
+                          },
+                          "required": [
+                            "certificate"
+                          ]
+                        },
+                        {
+                          "properties": {
+                            "pattern": {}
+                          },
+                          "required": [
+                            "pattern"
+                          ]
+                        }
+                      ],
                       "properties": {
                         "certificate": {
-                          "description": "The name of the file certificate in the Secret.",
+                          "description": "The name of the file certificate in the secret.",
+                          "type": "string"
+                        },
+                        "pattern": {
+                          "description": "Pattern for the certificate files in the secret. Use the link:https://en.wikipedia.org/wiki/Glob_(programming)[_glob syntax_] for the pattern. All files in the secret that match the pattern are used.",
                           "type": "string"
                         },
                         "secretName": {
@@ -252,8 +333,7 @@
                         }
                       },
                       "required": [
-                        "secretName",
-                        "certificate"
+                        "secretName"
                       ],
                       "type": "object",
                       "additionalProperties": false
@@ -291,6 +371,24 @@
                   },
                   "valueFrom": {
                     "description": "Value of the environment variable which will be passed to the Kafka Connect pods. It can be passed either as a reference to Secret or ConfigMap field. The field has to specify exactly one Secret or ConfigMap.",
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "secretKeyRef": {}
+                        },
+                        "required": [
+                          "secretKeyRef"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "configMapKeyRef": {}
+                        },
+                        "required": [
+                          "configMapKeyRef"
+                        ]
+                      }
+                    ],
                     "properties": {
                       "configMapKeyRef": {
                         "description": "Reference to a key in a ConfigMap.",
@@ -341,6 +439,24 @@
             "volumes": {
               "description": "Makes data from a Secret or ConfigMap available in the Kafka Connect pods as volumes.",
               "items": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "secret": {}
+                    },
+                    "required": [
+                      "secret"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "configMap": {}
+                    },
+                    "required": [
+                      "configMap"
+                    ]
+                  }
+                ],
                 "properties": {
                   "configMap": {
                     "description": "Reference to a key in a ConfigMap. Exactly one Secret or ConfigMap has to be specified.",
@@ -629,6 +745,26 @@
               "checkpointConnector": {
                 "description": "The specification of the Kafka MirrorMaker 2 checkpoint connector.",
                 "properties": {
+                  "alterOffsets": {
+                    "description": "Configuration for altering offsets.",
+                    "properties": {
+                      "fromConfigMap": {
+                        "description": "Reference to the ConfigMap where the new offsets are stored.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "fromConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
                   "autoRestart": {
                     "description": "Automatic restart of connector and tasks configuration.",
                     "properties": {
@@ -645,9 +781,29 @@
                     "additionalProperties": false
                   },
                   "config": {
-                    "description": "The Kafka Connector configuration. The following properties cannot be set: connector.class, tasks.max.",
+                    "description": "The Kafka Connector configuration. The following properties cannot be set: name, connector.class, tasks.max.",
                     "type": "object",
                     "x-kubernetes-preserve-unknown-fields": true
+                  },
+                  "listOffsets": {
+                    "description": "Configuration for listing offsets.",
+                    "properties": {
+                      "toConfigMap": {
+                        "description": "Reference to the ConfigMap where the list of offsets will be written to.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "toConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
                   },
                   "pause": {
                     "description": "Whether the connector should be paused. Defaults to false.",
@@ -686,6 +842,26 @@
               "heartbeatConnector": {
                 "description": "The specification of the Kafka MirrorMaker 2 heartbeat connector.",
                 "properties": {
+                  "alterOffsets": {
+                    "description": "Configuration for altering offsets.",
+                    "properties": {
+                      "fromConfigMap": {
+                        "description": "Reference to the ConfigMap where the new offsets are stored.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "fromConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
                   "autoRestart": {
                     "description": "Automatic restart of connector and tasks configuration.",
                     "properties": {
@@ -702,9 +878,29 @@
                     "additionalProperties": false
                   },
                   "config": {
-                    "description": "The Kafka Connector configuration. The following properties cannot be set: connector.class, tasks.max.",
+                    "description": "The Kafka Connector configuration. The following properties cannot be set: name, connector.class, tasks.max.",
                     "type": "object",
                     "x-kubernetes-preserve-unknown-fields": true
+                  },
+                  "listOffsets": {
+                    "description": "Configuration for listing offsets.",
+                    "properties": {
+                      "toConfigMap": {
+                        "description": "Reference to the ConfigMap where the list of offsets will be written to.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "toConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
                   },
                   "pause": {
                     "description": "Whether the connector should be paused. Defaults to false.",
@@ -735,6 +931,26 @@
               "sourceConnector": {
                 "description": "The specification of the Kafka MirrorMaker 2 source connector.",
                 "properties": {
+                  "alterOffsets": {
+                    "description": "Configuration for altering offsets.",
+                    "properties": {
+                      "fromConfigMap": {
+                        "description": "Reference to the ConfigMap where the new offsets are stored.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "fromConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
                   "autoRestart": {
                     "description": "Automatic restart of connector and tasks configuration.",
                     "properties": {
@@ -751,9 +967,29 @@
                     "additionalProperties": false
                   },
                   "config": {
-                    "description": "The Kafka Connector configuration. The following properties cannot be set: connector.class, tasks.max.",
+                    "description": "The Kafka Connector configuration. The following properties cannot be set: name, connector.class, tasks.max.",
                     "type": "object",
                     "x-kubernetes-preserve-unknown-fields": true
+                  },
+                  "listOffsets": {
+                    "description": "Configuration for listing offsets.",
+                    "properties": {
+                      "toConfigMap": {
+                        "description": "Reference to the ConfigMap where the list of offsets will be written to.",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "toConfigMap"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
                   },
                   "pause": {
                     "description": "Whether the connector should be paused. Defaults to false.",
@@ -904,7 +1140,7 @@
           "additionalProperties": false
         },
         "template": {
-          "description": "Template for Kafka Connect and Kafka Mirror Maker 2 resources. The template allows users to specify how the `Pods`, `Service`, and other services are generated.",
+          "description": "Template for Kafka Connect and Kafka MirrorMaker 2 resources. The template allows users to specify how the `Pods`, `Service`, and other services are generated.",
           "properties": {
             "apiService": {
               "description": "Template for Kafka Connect API `Service`.",
@@ -992,6 +1228,24 @@
                 "env": {
                   "description": "Environment variables which should be applied to the container.",
                   "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "value": {}
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "valueFrom": {}
+                        },
+                        "required": [
+                          "valueFrom"
+                        ]
+                      }
+                    ],
                     "properties": {
                       "name": {
                         "description": "The environment variable key.",
@@ -1000,6 +1254,63 @@
                       "value": {
                         "description": "The environment variable value.",
                         "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Reference to the secret or config map property to which the environment variable is set.",
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "secretKeyRef": {}
+                            },
+                            "required": [
+                              "secretKeyRef"
+                            ]
+                          },
+                          {
+                            "properties": {
+                              "configMapKeyRef": {}
+                            },
+                            "required": [
+                              "configMapKeyRef"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "configMapKeyRef": {
+                            "description": "Reference to a key in a config map.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "secretKeyRef": {
+                            "description": "Reference to a key in a secret.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
                       }
                     },
                     "type": "object",
@@ -1012,6 +1323,18 @@
                   "properties": {
                     "allowPrivilegeEscalation": {
                       "type": "boolean"
+                    },
+                    "appArmorProfile": {
+                      "properties": {
+                        "localhostProfile": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
                     },
                     "capabilities": {
                       "properties": {
@@ -1100,6 +1423,37 @@
                   },
                   "type": "object",
                   "additionalProperties": false
+                },
+                "volumeMounts": {
+                  "description": "Additional volume mounts which should be applied to the container.",
+                  "items": {
+                    "properties": {
+                      "mountPath": {
+                        "type": "string"
+                      },
+                      "mountPropagation": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "readOnly": {
+                        "type": "boolean"
+                      },
+                      "recursiveReadOnly": {
+                        "type": "string"
+                      },
+                      "subPath": {
+                        "type": "string"
+                      },
+                      "subPathExpr": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
                 }
               },
               "type": "object",
@@ -1720,6 +2074,18 @@
                 "securityContext": {
                   "description": "Configures pod-level security attributes and common container settings.",
                   "properties": {
+                    "appArmorProfile": {
+                      "properties": {
+                        "localhostProfile": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
+                    },
                     "fsGroup": {
                       "type": "integer"
                     },
@@ -1814,7 +2180,7 @@
                   "type": "integer"
                 },
                 "tmpDirSizeLimit": {
-                  "description": "Defines the total amount (for example `1Gi`) of local storage required for temporary EmptyDir volume (`/tmp`). Default value is `5Mi`.",
+                  "description": "Defines the total amount of pod memory allocated for the temporary `EmptyDir` volume `/tmp`. Specify the allocation in memory units, for example, `100Mi` for 100 mebibytes. Default value is `5Mi`. The `/tmp` volume is backed by pod memory, not disk storage, so avoid setting a high value as it consumes pod memory resources.",
                   "pattern": "^([0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$",
                   "type": "string"
                 },
@@ -1909,6 +2275,165 @@
                     "additionalProperties": false
                   },
                   "type": "array"
+                },
+                "volumes": {
+                  "description": "Additional volumes that can be mounted to the pod.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "configMap": {},
+                          "csi": {},
+                          "emptyDir": {},
+                          "persistentVolumeClaim": {},
+                          "secret": {}
+                        }
+                      }
+                    ],
+                    "properties": {
+                      "configMap": {
+                        "description": "ConfigMap to use to populate the volume.",
+                        "properties": {
+                          "defaultMode": {
+                            "type": "integer"
+                          },
+                          "items": {
+                            "items": {
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "integer"
+                                },
+                                "path": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object",
+                              "additionalProperties": false
+                            },
+                            "type": "array"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "csi": {
+                        "description": "CSIVolumeSource object to use to populate the volume.",
+                        "properties": {
+                          "driver": {
+                            "type": "string"
+                          },
+                          "fsType": {
+                            "type": "string"
+                          },
+                          "nodePublishSecretRef": {
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          },
+                          "volumeAttributes": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "emptyDir": {
+                        "description": "EmptyDir to use to populate the volume.",
+                        "properties": {
+                          "medium": {
+                            "type": "string"
+                          },
+                          "sizeLimit": {
+                            "properties": {
+                              "amount": {
+                                "type": "string"
+                              },
+                              "format": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "name": {
+                        "description": "Name to use for the volume. Required.",
+                        "type": "string"
+                      },
+                      "persistentVolumeClaim": {
+                        "description": "PersistentVolumeClaim object to use to populate the volume.",
+                        "properties": {
+                          "claimName": {
+                            "type": "string"
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "secret": {
+                        "description": "Secret to use populate the volume.",
+                        "properties": {
+                          "defaultMode": {
+                            "type": "integer"
+                          },
+                          "items": {
+                            "items": {
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "integer"
+                                },
+                                "path": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object",
+                              "additionalProperties": false
+                            },
+                            "type": "array"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          },
+                          "secretName": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
                 }
               },
               "type": "object",
@@ -1976,6 +2501,24 @@
                 "env": {
                   "description": "Environment variables which should be applied to the container.",
                   "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "value": {}
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "valueFrom": {}
+                        },
+                        "required": [
+                          "valueFrom"
+                        ]
+                      }
+                    ],
                     "properties": {
                       "name": {
                         "description": "The environment variable key.",
@@ -1984,6 +2527,63 @@
                       "value": {
                         "description": "The environment variable value.",
                         "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Reference to the secret or config map property to which the environment variable is set.",
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "secretKeyRef": {}
+                            },
+                            "required": [
+                              "secretKeyRef"
+                            ]
+                          },
+                          {
+                            "properties": {
+                              "configMapKeyRef": {}
+                            },
+                            "required": [
+                              "configMapKeyRef"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "configMapKeyRef": {
+                            "description": "Reference to a key in a config map.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "secretKeyRef": {
+                            "description": "Reference to a key in a secret.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
                       }
                     },
                     "type": "object",
@@ -1996,6 +2596,18 @@
                   "properties": {
                     "allowPrivilegeEscalation": {
                       "type": "boolean"
+                    },
+                    "appArmorProfile": {
+                      "properties": {
+                        "localhostProfile": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
                     },
                     "capabilities": {
                       "properties": {
@@ -2084,6 +2696,37 @@
                   },
                   "type": "object",
                   "additionalProperties": false
+                },
+                "volumeMounts": {
+                  "description": "Additional volume mounts which should be applied to the container.",
+                  "items": {
+                    "properties": {
+                      "mountPath": {
+                        "type": "string"
+                      },
+                      "mountPropagation": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "readOnly": {
+                        "type": "boolean"
+                      },
+                      "recursiveReadOnly": {
+                        "type": "string"
+                      },
+                      "subPath": {
+                        "type": "string"
+                      },
+                      "subPathExpr": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
                 }
               },
               "type": "object",
@@ -2179,6 +2822,24 @@
                 "env": {
                   "description": "Environment variables which should be applied to the container.",
                   "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "value": {}
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "valueFrom": {}
+                        },
+                        "required": [
+                          "valueFrom"
+                        ]
+                      }
+                    ],
                     "properties": {
                       "name": {
                         "description": "The environment variable key.",
@@ -2187,6 +2848,63 @@
                       "value": {
                         "description": "The environment variable value.",
                         "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Reference to the secret or config map property to which the environment variable is set.",
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "secretKeyRef": {}
+                            },
+                            "required": [
+                              "secretKeyRef"
+                            ]
+                          },
+                          {
+                            "properties": {
+                              "configMapKeyRef": {}
+                            },
+                            "required": [
+                              "configMapKeyRef"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "configMapKeyRef": {
+                            "description": "Reference to a key in a config map.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "secretKeyRef": {
+                            "description": "Reference to a key in a secret.",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
                       }
                     },
                     "type": "object",
@@ -2199,6 +2917,18 @@
                   "properties": {
                     "allowPrivilegeEscalation": {
                       "type": "boolean"
+                    },
+                    "appArmorProfile": {
+                      "properties": {
+                        "localhostProfile": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
                     },
                     "capabilities": {
                       "properties": {
@@ -2287,6 +3017,37 @@
                   },
                   "type": "object",
                   "additionalProperties": false
+                },
+                "volumeMounts": {
+                  "description": "Additional volume mounts which should be applied to the container.",
+                  "items": {
+                    "properties": {
+                      "mountPath": {
+                        "type": "string"
+                      },
+                      "mountPropagation": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "readOnly": {
+                        "type": "boolean"
+                      },
+                      "recursiveReadOnly": {
+                        "type": "string"
+                      },
+                      "subPath": {
+                        "type": "string"
+                      },
+                      "subPathExpr": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
                 }
               },
               "type": "object",
@@ -2935,6 +3696,18 @@
                 "securityContext": {
                   "description": "Configures pod-level security attributes and common container settings.",
                   "properties": {
+                    "appArmorProfile": {
+                      "properties": {
+                        "localhostProfile": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
+                    },
                     "fsGroup": {
                       "type": "integer"
                     },
@@ -3029,7 +3802,7 @@
                   "type": "integer"
                 },
                 "tmpDirSizeLimit": {
-                  "description": "Defines the total amount (for example `1Gi`) of local storage required for temporary EmptyDir volume (`/tmp`). Default value is `5Mi`.",
+                  "description": "Defines the total amount of pod memory allocated for the temporary `EmptyDir` volume `/tmp`. Specify the allocation in memory units, for example, `100Mi` for 100 mebibytes. Default value is `5Mi`. The `/tmp` volume is backed by pod memory, not disk storage, so avoid setting a high value as it consumes pod memory resources.",
                   "pattern": "^([0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$",
                   "type": "string"
                 },
@@ -3118,6 +3891,165 @@
                       },
                       "whenUnsatisfiable": {
                         "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "volumes": {
+                  "description": "Additional volumes that can be mounted to the pod.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "configMap": {},
+                          "csi": {},
+                          "emptyDir": {},
+                          "persistentVolumeClaim": {},
+                          "secret": {}
+                        }
+                      }
+                    ],
+                    "properties": {
+                      "configMap": {
+                        "description": "ConfigMap to use to populate the volume.",
+                        "properties": {
+                          "defaultMode": {
+                            "type": "integer"
+                          },
+                          "items": {
+                            "items": {
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "integer"
+                                },
+                                "path": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object",
+                              "additionalProperties": false
+                            },
+                            "type": "array"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "csi": {
+                        "description": "CSIVolumeSource object to use to populate the volume.",
+                        "properties": {
+                          "driver": {
+                            "type": "string"
+                          },
+                          "fsType": {
+                            "type": "string"
+                          },
+                          "nodePublishSecretRef": {
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          },
+                          "volumeAttributes": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "emptyDir": {
+                        "description": "EmptyDir to use to populate the volume.",
+                        "properties": {
+                          "medium": {
+                            "type": "string"
+                          },
+                          "sizeLimit": {
+                            "properties": {
+                              "amount": {
+                                "type": "string"
+                              },
+                              "format": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "name": {
+                        "description": "Name to use for the volume. Required.",
+                        "type": "string"
+                      },
+                      "persistentVolumeClaim": {
+                        "description": "PersistentVolumeClaim object to use to populate the volume.",
+                        "properties": {
+                          "claimName": {
+                            "type": "string"
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "secret": {
+                        "description": "Secret to use populate the volume.",
+                        "properties": {
+                          "defaultMode": {
+                            "type": "integer"
+                          },
+                          "items": {
+                            "items": {
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "integer"
+                                },
+                                "path": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object",
+                              "additionalProperties": false
+                            },
+                            "type": "array"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          },
+                          "secretName": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
                       }
                     },
                     "type": "object",
